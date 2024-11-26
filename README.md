@@ -3,14 +3,17 @@
 This repository is the official PyTorch implementation of the paper:
 
 &nbsp;&nbsp;&nbsp;[**GauFRe: Gaussian Deformation Fields for Real-time Dynamic Novel View Synthesis**](https://lynl7130.github.io/gaufre/index.html)  
-&nbsp;&nbsp;&nbsp;[Yiqing Liang](https://lynl7130.github.io), [Numair Khan](https://nkhan2.github.io/), [Zhengqin Li](https://sites.google.com/a/eng.ucsd.edu/zhengqinli), [Thu Nguyen-Phuoc](https://www.monkeyoverflow.com/), [Douglas Lanman](https://www.linkedin.com/in/dlanman), [James Tompkin](https://jamestompkin.com/), [Lei Xiao](https://leixiao-ubc.github.io/)
+[Yiqing Liang](https://lynl7130.github.io)‡, [Numair Khan](https://nkhan2.github.io/), [Zhengqin Li](https://sites.google.com/a/eng.ucsd.edu/zhengqinli), [Thu Nguyen-Phuoc](https://www.monkeyoverflow.com/), [Douglas Lanman](https://www.linkedin.com/in/dlanman), [James Tompkin](https://jamestompkin.com/)‡, [Lei Xiao](https://leixiao-ubc.github.io/)  
+
+<img width="20%" text-align="center" margin="auto" src=images/metalogo.png> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+‡ <img width="12%"  text-align="center" margin="auto" src=images/brownlogo.svg>
 
 &nbsp;&nbsp;&nbsp;*WACV*, 2025 
 
 &nbsp;&nbsp;&nbsp;[Paper](https://lynl7130.github.io/gaufre/static/pdfs/WACV_2025___GauFRe%20(1).pdf) / [Arxiv](https://arxiv.org/abs/2312.11458)
 
 ## Getting Started
-This code has been developed with Anaconda (Python 3.9), CUDA 12.1.1 on Red Hat Enterprise Linux 9.2.  
+This code has been developed with Anaconda (Python 3.9), CUDA 12.1.1 on Red Hat Enterprise Linux 9.2, one NVIDIA GeForce RTX 3090 GPU.  
 Based on a fresh [Anaconda](https://www.anaconda.com/download/) environment ```gaufre```, following packages need to be installed:  
 
   ```Shell
