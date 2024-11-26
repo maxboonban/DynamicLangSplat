@@ -38,7 +38,7 @@ python -c "import cv2"
 conda install -c conda-forge plyfile==0.8.1
 pip install tqdm imageio
 
-pip uninstall -y torch torchvision torchaudio
+#pip uninstall -y torch torchvision torchaudio
 pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu121
 python -c "import torch; print(torch.cuda.is_available())"
 
