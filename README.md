@@ -38,6 +38,10 @@ pip install tensorboard
 pip install scipy
 pip install kornia
 pip install lpips
+pip install ftfy
+pip install timm
+pip install einops
+pip install regex
 
 # install from local folders 
 cd submodules/dqtorch
@@ -54,6 +58,33 @@ We follow the data organization of ["Monocular Dynamic Gaussian Splatting is Fas
 which could be downloaded [here](https://1drv.ms/f/c/4dd35d8ee847a247/EpmindtZTxxBiSjYVuaaiuUBr7w3nOzEl6GjrWjmVPuBFw?e=cW5gg1).
 
 To use, one needs to unzip each ```[NestedPath]/[Scene].zip``` to be folder ```[NestedPath]/[Scene]```.
+
+
+## Extracting Features
+In order to train our `4-LEGS`, first we have to extract spatio-temporal features. In order to do so, first download the `ViCLIP` model. To do so, first agree to the conditions [here](https://huggingface.co/OpenGVLab/ViCLIP), download the following files: `bpe_simple_vocab_16e6.txt.gz` and `ViClip-InternVid-10M-FLT.pth` and put them under the `feature_extraction/ViCLIP/` directory. </br>
+
+Now, run the following command:
+
+    python extract_features.py -s <data sequence folder name> -f <first timestep to extract features> -l <last timestep to extract features>
+
+For example:
+
+    python extract_features.py -s basketball -f 0 -l 300
+
+For this example the extracted features are under `data/basketball/interpolators/`.
+
+(Feature extraction takes some time to run, we recommend running in parallel on multiple gpus by splitting the timesteps, if possible. (e.g., -f 0 -l 10, -f 10 -l 20, etc.))
+
+## Training an Autoencoder
+The next step is training an autoencoder:
+
+    python train_autoencoder.py -s <data sequence folder name>
+
+For example:
+
+    python train_autoencoder.py -s basketball
+
+For this example the autoencoder weights will be saved under `data/basketball/ae/`.
 
 
 ## Training and Inference
