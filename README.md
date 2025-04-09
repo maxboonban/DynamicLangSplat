@@ -43,6 +43,7 @@ pip install ftfy
 pip install timm
 pip install einops
 pip install regex
+pip install xformers
 
 # install from local folders 
 cd submodules/dqtorch
