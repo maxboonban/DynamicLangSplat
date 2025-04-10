@@ -1,4 +1,4 @@
-# GauFRe: Gaussian Deformation Fields for Real-time Dynamic Novel View Synthesis
+# GauFRe + LangSplat
 
 This repository is the official PyTorch implementation of the paper:
 
@@ -16,16 +16,18 @@ This repository is the official PyTorch implementation of the paper:
 This code has been developed with Anaconda (Python 3.9), CUDA 12.1.1 on Red Hat Enterprise Linux 9.2, one NVIDIA GeForce RTX 3090 GPU.  
 Based on a fresh [Anaconda](https://www.anaconda.com/download/) environment ```gaufre```, following packages need to be installed:  
 
+
+
 ```Shell
-conda create -n "gaufre" python=3.9
-conda activate gaufre
+conda create -n "lsplat" python=3.10
+conda activate lsplat
 conda install -c anaconda libstdcxx-ng
 conda install -c menpo opencv 
 conda install -c conda-forge plyfile==0.8.1
 conda install nvidia/label/cuda-12.1.1::cuda-toolkit
 pip install tqdm imageio
 
-pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu121
+pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu121
 python -c "import torch; print(torch.cuda.is_available())" # verify that torch is installed correctly
 
 pip install matplotlib
@@ -55,6 +57,13 @@ pip install submodules/simple-knn
 pip install submodules/sam2
 
   ```
+
+## Building SAM2
+```
+cd submodules/sam2
+
+pip install -e .
+```
 
 ## Dataset
 
