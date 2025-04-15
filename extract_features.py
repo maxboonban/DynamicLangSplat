@@ -26,7 +26,7 @@ clip, _, preprocess = open_clip.create_model_and_transforms(
     "ViT-B-32", pretrained="laion2b_s34b_b79k"
 )
 clip.cuda()
-clip.eval()  # model in train mode by default, impacts some models with BatchNorm or stochastic depth active
+clip.eval()
 
 
 def extract_features(image_list, resolution, sequence_dir):

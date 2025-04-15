@@ -73,6 +73,28 @@ which could be downloaded [here](https://1drv.ms/f/c/4dd35d8ee847a247/EpmindtZTx
 To use, one needs to unzip each ```[NestedPath]/[Scene].zip``` to be folder ```[NestedPath]/[Scene]```.
 
 
+## Preprocessing
+
+First run
+```Shell
+python extract_features.py -s $dataset_path 
+```
+
+Then run
+```Shell
+cd autoencoder
+python train.py --dataset_name $dataset_path 
+python test.py --dataset_name $dataset_path 
+```
+
+Finally run
+
+```Shell
+cd ..
+python dino_pca.py -s $dataset_path
+```
+
+
 ## Training and Inference
 
 To train GauFRe on a scene ```[NestedPath]/[Scene]```, and save output to folder ```[OutputPath]```, 
