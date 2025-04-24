@@ -77,21 +77,21 @@ To use, one needs to unzip each ```[NestedPath]/[Scene].zip``` to be folder ```[
 
 First run
 ```Shell
-python extract_features.py -s $dataset_path 
+python extract_features.py -s $dataset_path -r 2
 ```
 
 Then run
 ```Shell
 cd autoencoder
-python train.py --dataset_name $dataset_path 
-python test.py --dataset_name $dataset_path 
+python train.py --dataset_path $dataset_path -r 2
+python test.py --dataset_path $dataset_path -r 2
 ```
 
 Finally run
 
 ```Shell
 cd ..
-python dino_pca.py -s $dataset_path
+python dino_pca.py -s $dataset_path -r 2
 ```
 
 
