@@ -9,26 +9,29 @@
 # For inquiries contact  george.drettakis@inria.fr
 #
 
+import copy
+import json
 import os
 import sys
-from PIL import Image
-from typing import NamedTuple, Optional
-from scene.colmap_loader import read_extrinsics_text, read_intrinsics_text, qvec2rotmat, \
-    read_extrinsics_binary, read_intrinsics_binary, read_points3D_binary, read_points3D_text
-from utils.graphics_utils import getWorld2View2, focal2fov, fov2focal
-import numpy as np
-import json
 from pathlib import Path
+from typing import NamedTuple, Optional
+
+import cv2 as cv
+import numpy as np
+import torch
+import torchvision.transforms as transforms
+from PIL import Image
 from plyfile import PlyData, PlyElement
-from utils.sh_utils import SH2RGB
+from scene.colmap_loader import (qvec2rotmat, read_extrinsics_binary,
+                                 read_extrinsics_text, read_intrinsics_binary,
+                                 read_intrinsics_text, read_points3D_binary,
+                                 read_points3D_text)
 from scene.gaussian_model import BasicPointCloud
 from scene.hyper_loader import Load_hyper_data, format_hyper_data
-import copy
-import cv2 as cv
-import torch
 from tqdm import tqdm
+from utils.graphics_utils import focal2fov, fov2focal, getWorld2View2
+from utils.sh_utils import SH2RGB
 
-import torchvision.transforms as transforms
 
 class TemporalCameraInfo(NamedTuple):
     uid: int
@@ -37,6 +40,7 @@ class TemporalCameraInfo(NamedTuple):
     FovY: np.array
     FovX: np.array
     image: np.array
+    # dino_features: np.array
     image_path: str
     image_name: str
     width: int
@@ -79,6 +83,7 @@ def getNerfppNorm(cam_info):
 
 def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder, downsample):
     #assert False, "Not Implemented for temporal yet!"
+    # TODO: read dino features
     cam_infos = []
     num_frames = len(cam_extrinsics)
     for idx, key in enumerate(cam_extrinsics):

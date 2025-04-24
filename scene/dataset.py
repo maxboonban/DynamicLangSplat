@@ -33,6 +33,8 @@ class FourDGSdataset(Dataset):
         except:
             caminfo = self.dataset[index]
             image = caminfo.image
+            dino_features = caminfo.dino_features
+            # clip_features = caminfo.clip_features
             R = caminfo.R
             T = caminfo.T
             FovX = caminfo.FovX
@@ -62,7 +64,8 @@ class FourDGSdataset(Dataset):
                           depth=depth,
                           fwd_flow=fwd_flow, fwd_flow_mask=fwd_flow_mask,
                           bwd_flow=bwd_flow, bwd_flow_mask=bwd_flow_mask,
-                          frame_id=frame_id)
+                          frame_id=frame_id,
+                          dino_features=dino_features) # , clip_features=clip_features)
     def __len__(self):
         
         return len(self.dataset)

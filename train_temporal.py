@@ -145,12 +145,22 @@ use_ResFields, ewa_prune):
             motion_gap=opt.motion_gap)
         image, viewspace_point_tensor, visibility_filter, radii = render_pkg["render"], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
         motion_tensor = render_pkg["motion_tensor"]
+        rendered_dino = render_pkg["rendered_dino"]
+        # rendered_clip = render_pkg["rendered_clip"]
         # Loss
         gt_image = viewpoint_cam.original_image.cuda()[:3]
         if iteration < opt.l1_l2_switch:
             Ll1 = l2_loss(image, gt_image)
         else:
             Ll1 = l1_loss(image, gt_image)
+        
+        # TODO: experiment with losses here
+        gt_dino = viewpoint_cam.dino_features.cuda()[:3]
+        dino_loss = l2_loss(rendered_dino, gt_dino) 
+        Ll1 += dino_loss
+        
+        # gt_clip = viewpoint_cam.clip_features.cuda()
+        # clip_loss = l2_loss(rendered_clip, gt_clip)
 
         # the case when no adpative policy is applied, use regualizer on loss
         #if not disable_adaptive:

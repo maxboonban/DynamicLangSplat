@@ -20,7 +20,8 @@ class TemporalCamera(nn.Module):
                  fwd_flow=None, fwd_flow_mask=None,
                  bwd_flow=None, bwd_flow_mask=None, 
                  frame_id=None,
-                 trans=np.array([0.0, 0.0, 0.0]), scale=1.0, data_device = "cuda"
+                 trans=np.array([0.0, 0.0, 0.0]), scale=1.0, data_device = "cuda",
+                 dino_features=None, clip_features=None
                  ):
         super(TemporalCamera, self).__init__()
 
@@ -49,6 +50,9 @@ class TemporalCamera(nn.Module):
         self.original_image = image.clamp(0.0, 1.0).to(self.data_device)
         self.image_width = self.original_image.shape[2]
         self.image_height = self.original_image.shape[1]
+
+        self.dino_features = dino_features.clamp(0.0, 1.0).to(self.data_device)
+        # self.clip_features = clip_features.clamp(0.0, 1.0).to(self.data_device)
 
         if gt_alpha_mask is not None:
             self.original_image *= gt_alpha_mask.to(self.data_device)

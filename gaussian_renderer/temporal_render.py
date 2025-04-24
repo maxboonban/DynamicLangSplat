@@ -142,6 +142,8 @@ def temporal_render(viewpoint_camera, pc : TemporalGaussianModel, pipe, bg_color
     cov3D_precomp = None
     colors_precomp = None
     shs = pc.get_features
+    dino = pc.get_features_dino
+    # clip = pc.get_features_clip
     #else:
     sm_loss, st_loss = 0., 0.
     if disable_deform:
@@ -305,6 +307,27 @@ def temporal_render(viewpoint_camera, pc : TemporalGaussianModel, pipe, bg_color
             scales = scales * static_filter + pc.get_scaling * (1.-static_filter),
             rotations = rotations * static_filter + pc.get_rotation * (1.-static_filter),
             cov3D_precomp = cov3D_precomp)
+        
+        rendered_dino, _, _ = rasterizer(
+            means3D = means3D * static_filter + pc.get_xyz * (1.-static_filter),
+            means2D = means2D,
+            shs = dino * static_filter[..., None] + dino * (1.-static_filter[..., None]),
+            colors_precomp = colors_precomp,
+            opacities = opacity * static_filter + pc.get_opacity * (1.-static_filter),
+            scales = scales * static_filter + pc.get_scaling * (1.-static_filter),
+            rotations = rotations * static_filter + pc.get_rotation * (1.-static_filter),
+            cov3D_precomp = cov3D_precomp)
+        
+        # rendered_clip, _, _ = rasterizer(
+        #     means3D = means3D * static_filter + pc.get_xyz * (1.-static_filter),
+        #     means2D = means2D,
+        #     shs = clip * static_filter[..., None] + clip * (1.-static_filter[..., None]),
+        #     colors_precomp = colors_precomp,
+        #     opacities = opacity * static_filter + pc.get_opacity * (1.-static_filter),
+        #     scales = scales * static_filter + pc.get_scaling * (1.-static_filter),
+        #     rotations = rotations * static_filter + pc.get_rotation * (1.-static_filter),
+        #     cov3D_precomp = cov3D_precomp)
+        
         #print(torch.sum(static_filter), means3D.shape[0])
         #means3D[static_filter] = pc.get_xyz[static_filter]
         #opacity[static_filter] = pc.get_opacity[static_filter]
@@ -546,6 +569,26 @@ def temporal_render(viewpoint_camera, pc : TemporalGaussianModel, pipe, bg_color
             rotations = rotations,
             cov3D_precomp = cov3D_precomp)
         
+        rendered_dino, _, _ = rasterizer(
+            means3D = means3D,
+            means2D = means2D,
+            shs = dino,
+            colors_precomp = colors_precomp,
+            opacities = opacity,
+            scales = scales,
+            rotations = rotations,
+            cov3D_precomp = cov3D_precomp)
+        
+        # rendered_clip, _, _ = rasterizer(
+        #     means3D = means3D,
+        #     means2D = means2D,
+        #     shs = clip,
+        #     colors_precomp = colors_precomp,
+        #     opacities = opacity,
+        #     scales = scales,
+        #     rotations = rotations,
+        #     cov3D_precomp = cov3D_precomp)
+        
         #scaling_tensor = scales.detach()
         if pc.ewa_prune:
             with torch.no_grad():
@@ -731,6 +774,8 @@ def temporal_render(viewpoint_camera, pc : TemporalGaussianModel, pipe, bg_color
             "visibility_filter" : radii > 0,
             "radii": radii,
             # store extra rendering
+            "rendered_dino": rendered_dino,
+            # "rendered_clip": rendered_clip,
             "rendered_sep": rendered_sep,
             "rendered_dy": rendered_dy,
             "rendered_canon": rendered_canon,
