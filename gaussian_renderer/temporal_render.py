@@ -310,8 +310,8 @@ def temporal_render(viewpoint_camera, pc : TemporalGaussianModel, pipe, bg_color
         
         rendered_dino, _, _ = rasterizer(
             means3D = means3D * static_filter + pc.get_xyz * (1.-static_filter),
-            means2D = means2D,
-            shs = dino * static_filter[..., None] + dino * (1.-static_filter[..., None]),
+            means2D = means2D.detach().clone(),
+            shs = dino * static_filter[..., None] + pc.get_features_dino * (1.-static_filter[..., None]),
             colors_precomp = colors_precomp,
             opacities = opacity * static_filter + pc.get_opacity * (1.-static_filter),
             scales = scales * static_filter + pc.get_scaling * (1.-static_filter),
@@ -320,8 +320,8 @@ def temporal_render(viewpoint_camera, pc : TemporalGaussianModel, pipe, bg_color
         
         # rendered_clip, _, _ = rasterizer(
         #     means3D = means3D * static_filter + pc.get_xyz * (1.-static_filter),
-        #     means2D = means2D,
-        #     shs = clip * static_filter[..., None] + clip * (1.-static_filter[..., None]),
+        #     means2D = means2D.detach().clone(),
+        #     shs = clip * static_filter[..., None] + pc.get_features_clip * (1.-static_filter[..., None]),
         #     colors_precomp = colors_precomp,
         #     opacities = opacity * static_filter + pc.get_opacity * (1.-static_filter),
         #     scales = scales * static_filter + pc.get_scaling * (1.-static_filter),
@@ -571,7 +571,7 @@ def temporal_render(viewpoint_camera, pc : TemporalGaussianModel, pipe, bg_color
         
         rendered_dino, _, _ = rasterizer(
             means3D = means3D,
-            means2D = means2D,
+            means2D = means2D.detach().clone(),
             shs = dino,
             colors_precomp = colors_precomp,
             opacities = opacity,
@@ -581,7 +581,7 @@ def temporal_render(viewpoint_camera, pc : TemporalGaussianModel, pipe, bg_color
         
         # rendered_clip, _, _ = rasterizer(
         #     means3D = means3D,
-        #     means2D = means2D,
+        #     means2D = means2D.detach().clone(),
         #     shs = clip,
         #     colors_precomp = colors_precomp,
         #     opacities = opacity,
