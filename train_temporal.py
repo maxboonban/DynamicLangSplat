@@ -10,28 +10,31 @@
 #
 
 import os
-import torch
-from random import randint
-from utils.loss_utils import l1_loss, l2_loss, ssim, compute_depth_loss, compute_flow_loss
-from gaussian_renderer.temporal_render import temporal_render
-from gaussian_renderer import network_gui
 import sys
-from scene.temporal_scene import TemporalScene
-from scene.temporal_gaussian_model import TemporalGaussianModel
-from utils.general_utils import safe_state
 import uuid
-from tqdm import tqdm
-from utils.image_utils import psnr
 from argparse import ArgumentParser, Namespace
-from arguments.temporal import ModelParams, PipelineParams, OptimizationParams
+from random import randint
+
 import imutils
+import torch
+from arguments.temporal import ModelParams, OptimizationParams, PipelineParams
+from gaussian_renderer import network_gui
+from gaussian_renderer.temporal_render import temporal_render
+from scene.temporal_gaussian_model import TemporalGaussianModel
+from scene.temporal_scene import TemporalScene
+from tqdm import tqdm
+from utils.general_utils import safe_state
+from utils.image_utils import psnr
+from utils.loss_utils import (compute_depth_loss, compute_flow_loss, l1_loss,
+                              l2_loss, ssim)
+
 try:
     from torch.utils.tensorboard import SummaryWriter
     TENSORBOARD_FOUND = True
 except ImportError:
     TENSORBOARD_FOUND = False
-from torch.utils.data import DataLoader
 from scene.dataset import FourDGSdataset
+from torch.utils.data import DataLoader
 from utils.flow_viz import flow_to_image
 
 
@@ -145,8 +148,6 @@ use_ResFields, ewa_prune):
             motion_gap=opt.motion_gap)
         image, viewspace_point_tensor, visibility_filter, radii = render_pkg["render"], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
         motion_tensor = render_pkg["motion_tensor"]
-        rendered_dino = render_pkg["rendered_dino"]
-        # rendered_clip = render_pkg["rendered_clip"]
         # Loss
         gt_image = viewpoint_cam.original_image.cuda()[:3]
         if iteration < opt.l1_l2_switch:
@@ -155,9 +156,15 @@ use_ResFields, ewa_prune):
             Ll1 = l1_loss(image, gt_image)
         
         # TODO: experiment with losses here
+        rendered_dino = render_pkg["rendered_dino"]
         gt_dino = viewpoint_cam.dino_features.cuda()[:3]
-        dino_loss = l2_loss(rendered_dino, gt_dino) 
+        if iteration < opt.l1_l2_switch:
+            dino_loss = l2_loss(rendered_dino, gt_dino) 
+        else:
+            dino_loss = l1_loss(rendered_dino, gt_dino) 
         Ll1 += dino_loss
+        
+        # rendered_clip = render_pkg["rendered_clip"]
         
         # gt_clip = viewpoint_cam.clip_features.cuda()
         # clip_loss = l2_loss(rendered_clip, gt_clip)
@@ -245,9 +252,9 @@ use_ResFields, ewa_prune):
                 progress_bar.close()
 
             # Log and save
-            training_report(tb_writer, iteration, Ll1, loss, l1_loss, iter_start.elapsed_time(iter_end), testing_iterations, scene, temporal_render, 
-                (pipe, background, disable_offscale, disable_offopa, disable_morph, multiply_offopa, iteration < opt.fix_until_iter, True, 
-                1.0, None, False, False, False, iteration if (anneal_band or anneal_band_time) else None))
+            # training_report(tb_writer, iteration, Ll1, loss, l1_loss, iter_start.elapsed_time(iter_end), testing_iterations, scene, temporal_render, 
+            #     (pipe, background, disable_offscale, disable_offopa, disable_morph, multiply_offopa, iteration < opt.fix_until_iter, True, 
+            #     1.0, None, False, False, False, iteration if (anneal_band or anneal_band_time) else None))
             if (iteration in saving_iterations):
                 print("\n[ITER {}] Saving Gaussians".format(iteration))
                 scene.save(iteration)

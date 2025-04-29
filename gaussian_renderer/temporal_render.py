@@ -11,6 +11,8 @@ from scene.temporal_gaussian_model import TemporalGaussianModel, batch_SH_rotate
 from utils.sh_utils import eval_sh
 from typing import Optional
 
+NUM_CHANNELS = 6
+
 # pts: Nx3
 # pts_left: Nx3
 # pts_right: Nx3
@@ -298,35 +300,36 @@ def temporal_render(viewpoint_camera, pc : TemporalGaussianModel, pipe, bg_color
     if pc.enable_static:
         static_filter = pc._isstatic
         #assert False, [shs.shape, static_filter.shape, pc.get_features.shape]
-        rendered_image, radii, rendered_depth = rasterizer(
+        
+        sh_concat = shs * static_filter[..., None] + pc.get_features * (1.-static_filter[..., None])
+        shs_view = sh_concat.transpose(1, 2).view(-1, 3, (pc.max_sh_degree+1)**2)
+        xyz_concat = means3D * static_filter + pc.get_xyz * (1.-static_filter)
+        dir_pp = (xyz_concat - viewpoint_camera.camera_center.repeat(pc.get_features.shape[0], 1))
+        dir_pp_normalized = dir_pp/dir_pp.norm(dim=1, keepdim=True)
+        sh2rgb = eval_sh(pc.active_sh_degree, shs_view, dir_pp_normalized)
+        colors_precomp = torch.clamp_min(sh2rgb + 0.5, 0.0)
+        
+        dino_features = dino * static_filter[..., None] + pc.get_features_dino * (1.-static_filter[..., None])
+        dino_features = dino_features.squeeze()
+        # clip_features = clip * static_filter[..., None] + pc.get_features_clip * (1.-static_filter[..., None])
+        # clip_features = clip_features.squeeze()
+        
+        features_precomp = torch.cat((colors_precomp, dino_features), dim=1)
+        # features_precomp = torch.cat((colors_precomp, dino_features, clip_features), dim=1)
+        
+        rendered_features, radii, rendered_depth = rasterizer(
             means3D = means3D * static_filter + pc.get_xyz * (1.-static_filter),
             means2D = means2D,
-            shs = shs * static_filter[..., None] + pc.get_features * (1.-static_filter[..., None]),
-            colors_precomp = colors_precomp,
+            shs = None,
+            colors_precomp = features_precomp,
             opacities = opacity * static_filter + pc.get_opacity * (1.-static_filter),
             scales = scales * static_filter + pc.get_scaling * (1.-static_filter),
             rotations = rotations * static_filter + pc.get_rotation * (1.-static_filter),
             cov3D_precomp = cov3D_precomp)
         
-        rendered_dino, _, _ = rasterizer(
-            means3D = means3D * static_filter + pc.get_xyz * (1.-static_filter),
-            means2D = means2D.detach().clone(),
-            shs = dino * static_filter[..., None] + pc.get_features_dino * (1.-static_filter[..., None]),
-            colors_precomp = colors_precomp,
-            opacities = opacity * static_filter + pc.get_opacity * (1.-static_filter),
-            scales = scales * static_filter + pc.get_scaling * (1.-static_filter),
-            rotations = rotations * static_filter + pc.get_rotation * (1.-static_filter),
-            cov3D_precomp = cov3D_precomp)
-        
-        # rendered_clip, _, _ = rasterizer(
-        #     means3D = means3D * static_filter + pc.get_xyz * (1.-static_filter),
-        #     means2D = means2D.detach().clone(),
-        #     shs = clip * static_filter[..., None] + pc.get_features_clip * (1.-static_filter[..., None]),
-        #     colors_precomp = colors_precomp,
-        #     opacities = opacity * static_filter + pc.get_opacity * (1.-static_filter),
-        #     scales = scales * static_filter + pc.get_scaling * (1.-static_filter),
-        #     rotations = rotations * static_filter + pc.get_rotation * (1.-static_filter),
-        #     cov3D_precomp = cov3D_precomp)
+        rendered_image = rendered_features[:3, :, :]
+        rendered_dino = rendered_features[3:6, :, :]
+        # rendered_clip = rendered_features[6:-1, :, :]
         
         #print(torch.sum(static_filter), means3D.shape[0])
         #means3D[static_filter] = pc.get_xyz[static_filter]
@@ -347,12 +350,14 @@ def temporal_render(viewpoint_camera, pc : TemporalGaussianModel, pipe, bg_color
                     means3D = means3D * static_filter + pc.get_xyz * (1.-static_filter),
                     means2D = means2D,
                     shs = None,
-                    colors_precomp = static_filter.view(-1, 1).repeat(1, 3),
+                    colors_precomp = static_filter.view(-1, 1).repeat(1, NUM_CHANNELS),
                     opacities = opacity * static_filter + pc.get_opacity * (1.-static_filter),
                     scales = scales * static_filter + pc.get_scaling * (1.-static_filter),
                     rotations = rotations * static_filter + pc.get_rotation * (1.-static_filter),
                     cov3D_precomp = None
                 )
+                
+                rendered_sep = rendered_sep[:3, :, :]
         
             except:
                 rendered_sep = torch.zeros_like(rendered_image).cuda()
@@ -386,7 +391,7 @@ def temporal_render(viewpoint_camera, pc : TemporalGaussianModel, pipe, bg_color
                 means3D = (means3D * static_filter + pc.get_xyz * (1.-static_filter)).detach(),
                 means2D = means2D.detach(),
                 shs = None,
-                colors_precomp = flow_fwd,
+                colors_precomp = flow_fwd.repeat(1, NUM_CHANNELS//3),
                 opacities = (opacity * static_filter + pc.get_opacity * (1.-static_filter)).detach(),
                 scales = (scales * static_filter + pc.get_scaling * (1.-static_filter)).detach(),
                 rotations = (rotations * static_filter + pc.get_rotation * (1.-static_filter)).detach(),    
@@ -395,11 +400,14 @@ def temporal_render(viewpoint_camera, pc : TemporalGaussianModel, pipe, bg_color
                 means3D = (means3D * static_filter + pc.get_xyz * (1.-static_filter)).detach(),
                 means2D = means2D.detach(),
                 shs = None,
-                colors_precomp = flow_bwd,
+                colors_precomp = flow_bwd.repeat(1, NUM_CHANNELS//3),
                 opacities = (opacity * static_filter + pc.get_opacity * (1.-static_filter)).detach(),
                 scales = (scales * static_filter + pc.get_scaling * (1.-static_filter)).detach(),
                 rotations = (rotations * static_filter + pc.get_rotation * (1.-static_filter)).detach(),    
                 cov3D_precomp = None)
+            
+            rendered_flow_fwd = rendered_flow_fwd[:3, :, :]
+            rendered_flow_bwd = rendered_flow_bwd[:3, :, :]
 
         #if return_depth:
         #    projected = viewpoint_camera.world_view_transform.T.unsqueeze(0) @ torch.cat([means3D * static_filter + pc.get_xyz * (1.-static_filter), torch.ones((screenspace_points.shape[0], 1), device="cuda")], dim=-1).unsqueeze(-1)
@@ -423,11 +431,24 @@ def temporal_render(viewpoint_camera, pc : TemporalGaussianModel, pipe, bg_color
         if visualize:
             with torch.no_grad():
                 is_dynamic = (static_filter == 1.).bool().view(-1)
+                
+                dy_view = shs.transpose(1, 2).view(-1, 3, (pc.max_sh_degree+1)**2)
+                dy_dir_pp = (means3D - viewpoint_camera.camera_center.repeat(pc.get_features.shape[0], 1))
+                dy_dir_pp_normalized = dy_dir_pp/dy_dir_pp.norm(dim=1, keepdim=True)
+                dy_sh2rgb = eval_sh(pc.active_sh_degree, dy_view, dy_dir_pp_normalized)
+                dy_precomp = torch.clamp_min(dy_sh2rgb + 0.5, 0.0).repeat(1, NUM_CHANNELS//3)
+                
+                static_view = pc.get_features.transpose(1, 2).view(-1, 3, (pc.max_sh_degree+1)**2)
+                static_dir_pp = (pc.get_xyz - viewpoint_camera.camera_center.repeat(pc.get_features.shape[0], 1))
+                static_dir_pp_normalized = static_dir_pp/static_dir_pp.norm(dim=1, keepdim=True)
+                static_sh2rgb = eval_sh(pc.active_sh_degree, static_view, static_dir_pp_normalized)
+                static_precomp = torch.clamp_min(static_sh2rgb + 0.5, 0.0).repeat(1, NUM_CHANNELS//3)
+                
                 rendered_dy, _, _ = rasterizer(
                     means3D = means3D[is_dynamic],
                     means2D = means2D[is_dynamic],
-                    shs = shs[is_dynamic],
-                    colors_precomp = None,
+                    shs = None,
+                    colors_precomp = dy_precomp[is_dynamic],
                     opacities = opacity[is_dynamic],
                     scales = scales[is_dynamic],
                     rotations = rotations[is_dynamic],
@@ -436,8 +457,8 @@ def temporal_render(viewpoint_camera, pc : TemporalGaussianModel, pipe, bg_color
                 rendered_stat, _, _ = rasterizer(
                     means3D = pc.get_xyz[~is_dynamic],
                     means2D = means2D[~is_dynamic],
-                    shs = pc.get_features[~is_dynamic],
-                    colors_precomp = None,
+                    shs = None,
+                    colors_precomp = static_precomp[~is_dynamic],
                     opacities = pc.get_opacity[~is_dynamic],
                     scales = pc.get_scaling[~is_dynamic],
                     rotations = pc.get_rotation[~is_dynamic],
@@ -446,14 +467,17 @@ def temporal_render(viewpoint_camera, pc : TemporalGaussianModel, pipe, bg_color
                 rendered_canon, _, _ = rasterizer(
                     means3D = pc.get_xyz[is_dynamic],
                     means2D = means2D[is_dynamic],
-                    shs = pc.get_features[is_dynamic],
-                    colors_precomp = None,
+                    shs = None,
+                    colors_precomp = static_precomp[is_dynamic],
                     opacities = pc.get_opacity[is_dynamic],
                     scales = pc.get_scaling[is_dynamic],
                     rotations = pc.get_rotation[is_dynamic],
                     cov3D_precomp = None
                 )
-
+                
+                rendered_dy = rendered_dy[:3, :, :]
+                rendered_stat = rendered_stat[:3, :, :]
+                rendered_canon = rendered_canon[:3, :, :]
 
                 
 
@@ -478,13 +502,14 @@ def temporal_render(viewpoint_camera, pc : TemporalGaussianModel, pipe, bg_color
                             means3D = means3D * static_filter + pc.get_xyz * (1.-static_filter),
                             means2D = means2D,
                             shs = None,
-                            colors_precomp = motion_per_point.view(-1, 1).repeat(1, 3),
+                            colors_precomp = motion_per_point.view(-1, 1).repeat(1, NUM_CHANNELS),
                             opacities = opacity * static_filter + pc.get_opacity * (1.-static_filter),
                             scales = scales * static_filter + pc.get_scaling * (1.-static_filter),
                             rotations = rotations * static_filter + pc.get_rotation * (1.-static_filter),
                             cov3D_precomp = None
                         )
                 
+                rendered_motion = rendered_motion[:3, :, :]
 
 
                 if rendered_sep is None:
@@ -493,12 +518,14 @@ def temporal_render(viewpoint_camera, pc : TemporalGaussianModel, pipe, bg_color
                             means3D = means3D * static_filter + pc.get_xyz * (1.-static_filter),
                             means2D = means2D,
                             shs = None,
-                            colors_precomp = static_filter.view(-1, 1).repeat(1, 3),
+                            colors_precomp = static_filter.view(-1, 1).repeat(1, NUM_CHANNELS//3),
                             opacities = opacity * static_filter + pc.get_opacity * (1.-static_filter),
                             scales = scales * static_filter + pc.get_scaling * (1.-static_filter),
                             rotations = rotations * static_filter + pc.get_rotation * (1.-static_filter),
                             cov3D_precomp = None
                         )
+                        
+                        rendered_sep = rendered_sep[:3, :, :]
                 
                     except:
                         rendered_sep = torch.zeros_like(rendered_image).cuda()
@@ -524,7 +551,7 @@ def temporal_render(viewpoint_camera, pc : TemporalGaussianModel, pipe, bg_color
                         means3D = (means3D * static_filter + pc.get_xyz * (1.-static_filter)).detach(),
                         means2D = means2D.detach(),
                         shs = None,
-                        colors_precomp = flow_fwd,
+                        colors_precomp = flow_fwd.repeat(1, NUM_CHANNELS//3),
                         opacities = (opacity * static_filter + pc.get_opacity * (1.-static_filter)).detach(),
                         scales = (scales * static_filter + pc.get_scaling * (1.-static_filter)).detach(),
                         rotations = (rotations * static_filter + pc.get_rotation * (1.-static_filter)).detach(),    
@@ -533,11 +560,14 @@ def temporal_render(viewpoint_camera, pc : TemporalGaussianModel, pipe, bg_color
                         means3D = (means3D * static_filter + pc.get_xyz * (1.-static_filter)).detach(),
                         means2D = means2D.detach(),
                         shs = None,
-                        colors_precomp = flow_bwd,
+                        colors_precomp = flow_bwd.repeat(1, NUM_CHANNELS//3),
                         opacities = (opacity * static_filter + pc.get_opacity * (1.-static_filter)).detach(),
                         scales = (scales * static_filter + pc.get_scaling * (1.-static_filter)).detach(),
                         rotations = (rotations * static_filter + pc.get_rotation * (1.-static_filter)).detach(),    
                         cov3D_precomp = None)
+                    
+                    rendered_flow_fwd = rendered_flow_fwd[:3, :, :]
+                    rendered_flow_bwd = rendered_flow_bwd[:3, :, :]
                 #if rendered_depth is None:
                 #    projected = viewpoint_camera.world_view_transform.T.unsqueeze(0) @ torch.cat([means3D * static_filter + pc.get_xyz * (1.-static_filter), torch.ones((screenspace_points.shape[0], 1), device="cuda")], dim=-1).unsqueeze(-1)
                 #    projected = projected[:, 2:3, 0].repeat(1, 3)
@@ -559,35 +589,32 @@ def temporal_render(viewpoint_camera, pc : TemporalGaussianModel, pipe, bg_color
                 #        rendered_depth = 1./rendered_depth # because background is white, use disparity
     else:
         #assert False, "motion visualization not supported yet"
-        rendered_image, radii, rendered_depth = rasterizer(
+        
+        shs_view = shs.transpose(1, 2).view(-1, 3, (pc.max_sh_degree+1)**2)
+        dir_pp = (means3D - viewpoint_camera.camera_center.repeat(pc.get_features.shape[0], 1))
+        dir_pp_normalized = dir_pp/dir_pp.norm(dim=1, keepdim=True)
+        sh2rgb = eval_sh(pc.active_sh_degree, shs_view, dir_pp_normalized)
+        colors_precomp = torch.clamp_min(sh2rgb + 0.5, 0.0)
+        
+        dino_features = dino.squeeze()
+        # clip_features = clip.squeeze()
+        
+        features_precomp = torch.cat((colors_precomp, dino_features), dim=1)
+        # features_precomp = torch.cat((colors_precomp, dino_features, clip_features), dim=1)
+        
+        rendered_features, radii, rendered_depth = rasterizer(
             means3D = means3D,
             means2D = means2D,
-            shs = shs,
-            colors_precomp = colors_precomp,
+            shs = None,
+            colors_precomp = features_precomp,
             opacities = opacity,
             scales = scales,
             rotations = rotations,
             cov3D_precomp = cov3D_precomp)
         
-        rendered_dino, _, _ = rasterizer(
-            means3D = means3D,
-            means2D = means2D.detach().clone(),
-            shs = dino,
-            colors_precomp = colors_precomp,
-            opacities = opacity,
-            scales = scales,
-            rotations = rotations,
-            cov3D_precomp = cov3D_precomp)
-        
-        # rendered_clip, _, _ = rasterizer(
-        #     means3D = means3D,
-        #     means2D = means2D.detach().clone(),
-        #     shs = clip,
-        #     colors_precomp = colors_precomp,
-        #     opacities = opacity,
-        #     scales = scales,
-        #     rotations = rotations,
-        #     cov3D_precomp = cov3D_precomp)
+        rendered_image = rendered_features[:3, :, :]
+        rendered_dino = rendered_features[3:6, :, :]
+        # rendered_clip = rendered_features[6:-1, :, :]
         
         #scaling_tensor = scales.detach()
         if pc.ewa_prune:
@@ -643,7 +670,7 @@ def temporal_render(viewpoint_camera, pc : TemporalGaussianModel, pipe, bg_color
                 means3D = (means3D * static_filter + pc.get_xyz * (1.-static_filter)).detach(),
                 means2D = means2D.detach(),
                 shs = None,
-                colors_precomp = flow_fwd,
+                colors_precomp = flow_fwd.repeat(1, NUM_CHANNELS//3),
                 opacities = (opacity * static_filter + pc.get_opacity * (1.-static_filter)).detach(),
                 scales = (scales * static_filter + pc.get_scaling * (1.-static_filter)).detach(),
                 rotations = (rotations * static_filter + pc.get_rotation * (1.-static_filter)).detach(),    
@@ -652,11 +679,14 @@ def temporal_render(viewpoint_camera, pc : TemporalGaussianModel, pipe, bg_color
                 means3D = (means3D * static_filter + pc.get_xyz * (1.-static_filter)).detach(),
                 means2D = means2D.detach(),
                 shs = None,
-                colors_precomp = flow_bwd,
+                colors_precomp = flow_bwd.repeat(1, NUM_CHANNELS//3),
                 opacities = (opacity * static_filter + pc.get_opacity * (1.-static_filter)).detach(),
                 scales = (scales * static_filter + pc.get_scaling * (1.-static_filter)).detach(),
                 rotations = (rotations * static_filter + pc.get_rotation * (1.-static_filter)).detach(),    
                 cov3D_precomp = None)
+            
+            rendered_flow_fwd = rendered_flow_fwd[:3, :, :]
+            rendered_flow_bwd = rendered_flow_bwd[:3, :, :]
         if visualize:
             rendered_canon, _, _ = rasterizer(
                 means3D = pc.get_xyz,
@@ -689,7 +719,7 @@ def temporal_render(viewpoint_camera, pc : TemporalGaussianModel, pipe, bg_color
                 means3D = means3D,
                 means2D = means2D,
                 shs = None,
-                colors_precomp = motion_per_point.view(-1, 1).repeat(1, 3),
+                colors_precomp = motion_per_point.view(-1, 1).repeat(1, NUM_CHANNELS),
                 opacities = opacity,
                 scales = scales,
                 rotations = rotations,
@@ -719,7 +749,7 @@ def temporal_render(viewpoint_camera, pc : TemporalGaussianModel, pipe, bg_color
                     means3D = means3D.detach(),
                     means2D = means2D.detach(),
                     shs = None,
-                    colors_precomp = flow_fwd,
+                    colors_precomp = flow_fwd.repeat(1, NUM_CHANNELS//3),
                     opacities = opacity.detach(),
                     scales = scales.detach(),
                     rotations = rotations.detach(),    
@@ -728,7 +758,7 @@ def temporal_render(viewpoint_camera, pc : TemporalGaussianModel, pipe, bg_color
                     means3D = means3D.detach(),
                     means2D = means2D.detach(),
                     shs = None,
-                    colors_precomp = flow_bwd,
+                    colors_precomp = flow_bwd.repeat(1, NUM_CHANNELS//3),
                     opacities = opacity.detach(),
                     scales = scales.detach(),
                     rotations = rotations.detach(),    
