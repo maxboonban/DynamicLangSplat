@@ -31,14 +31,17 @@ clip.eval()
 
 def extract_features(image_list, resolution, sequence_dir):
     images_dir = os.path.join(sequence_dir, f"rgb/{resolution}")
-    mask_dir = os.path.join(sequence_dir, f"object_mask/{resolution}")
+    mask_dir = os.path.join(sequence_dir, f"mask/{resolution}")
     dino_dir = os.path.join(sequence_dir, f"dino/{resolution}")
     clip_dir = os.path.join(sequence_dir, f"clip/{resolution}")
     os.makedirs(dino_dir, exist_ok=True)
     os.makedirs(clip_dir, exist_ok=True)
+    print(mask_dir)
     _, dirs, _ = [p for p in os.walk(mask_dir)][0]
     most_visible = {}
-    progress_bar = tqdm(range(0, len(files)), desc="Extracting DINO features")
+    # Create a mapping from directory names to indices
+    dir_to_idx = {dir_name: idx for idx, dir_name in enumerate(sorted(dirs))}
+    progress_bar = tqdm(range(0, len(image_list)), desc="Extracting DINO features")
 
     for im_tensor, file in image_list:
 
@@ -111,7 +114,7 @@ def extract_features(image_list, resolution, sequence_dir):
         preprocessed = preprocess(masked_image).unsqueeze(0).cuda()
         with torch.no_grad():
             clip_embedding = clip.encode_image(preprocessed)
-        clip_embeddings[int(dir), :] = clip_embedding.squeeze().cpu().numpy()
+        clip_embeddings[dir_to_idx[dir], :] = clip_embedding.squeeze().cpu().numpy()
         progress_bar.update(1)
     progress_bar.close()
     np.save(os.path.join(clip_dir, "embeddings"), clip_embeddings)

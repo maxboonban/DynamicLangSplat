@@ -33,7 +33,7 @@ if __name__ == "__main__":
     ckpt_path = os.path.join(checkpoint_path, "best_ckpt.pth")
 
     data_dir = os.path.join(dataset_path, f"clip/{args.resolution}x")
-    mask_dir = os.path.join(dataset_path, f"object_mask/{args.resolution}x")
+    mask_dir = os.path.join(dataset_path, f"mask/{args.resolution}x")
     rgb_dir = os.path.join(dataset_path, f"rgb/{args.resolution}x")
     output_dir = os.path.join(dataset_path, f"clip_dim3/{args.resolution}x")
     os.makedirs(output_dir, exist_ok=True)
