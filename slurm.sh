@@ -27,26 +27,26 @@ DATASET_PATH="${WORKSPACE_DIR}/data/plate"
 #     exit 1
 # fi
 
-# Change to workspace directory
-cd "${WORKSPACE_DIR}"
+# # Change to workspace directory
+# cd "${WORKSPACE_DIR}"
 
-# Step 1: Extract features
-echo "Running extract_features.py..."
-python extract_features.py -s "${DATASET_PATH}" -r 1
+# # Step 1: Extract features
+# echo "Running extract_features.py..."
+# python extract_features.py -s "${DATASET_PATH}" -r 1
 
-# Step 2: Run autoencoder training and testing
-echo "Running autoencoder training..."
-cd autoencoder
-python train.py --dataset_path "${DATASET_PATH}" -r 1
-echo "Running autoencoder testing..."
-python test.py --dataset_path "${DATASET_PATH}" -r 1
-cd ..
+# # Step 2: Run autoencoder training and testing
+# echo "Running autoencoder training..."
+# cd autoencoder
+# python train.py --dataset_path "${DATASET_PATH}" -r 1
+# echo "Running autoencoder testing..."
+# python test.py --dataset_path "${DATASET_PATH}" -r 1
+# cd ..
 
-# Step 3: Run DINO PCA
-echo "Running DINO PCA..."
-python dino_pca.py -s "${DATASET_PATH}" -r 1
+# # Step 3: Run DINO PCA
+# echo "Running DINO PCA..."
+# python dino_pca.py -s "${DATASET_PATH}" -r 1
 
-echo "Preprocessing completed!"
+# echo "Preprocessing completed!"
 
 # # To save the visualization instead of displaying
-# python visualize_dino.py --npy_path data/plate/dino/1x/000000.npy --output_path visualization.png
+python visualize_dino.py --npy_path data/plate/dino/1x/000001.npy --output_path visualization.png
