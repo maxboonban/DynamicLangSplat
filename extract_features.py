@@ -79,11 +79,15 @@ def extract_features(image_list, resolution, sequence_dir):
             "padding_left": padding_left,
             "padding_right": padding_right,
         }
-        np.save(os.path.join(dino_dir, file), dino_features.squeeze(0).cpu().numpy())
-        with open(os.path.join(dino_dir, file + ".json"), "w") as f:
+        # Save DINO features with simplified name
+        base_name = os.path.splitext(file)[0]  # Remove .png extension
+        np.save(os.path.join(dino_dir, base_name + ".npy"), dino_features.squeeze(0).cpu().numpy())
+        with open(os.path.join(dino_dir, base_name + ".json"), "w") as f:
             json.dump(dino_crop, f)
         for dir in dirs:
-            mask_path = os.path.join(mask_dir, dir, file + ".png")
+            # Construct mask path with _left.png.png naming convention
+            base_name = os.path.splitext(file)[0]  # Remove .png extension
+            mask_path = os.path.join(mask_dir, dir, base_name + "_left.png.png")
             mask = Image.open(mask_path)
             mask.resize((W, H))
 
@@ -105,7 +109,9 @@ def extract_features(image_list, resolution, sequence_dir):
 
         im_data = np.array(image.convert("RGB"))
         H, W, _ = im_data.shape
-        mask_path = os.path.join(mask_dir, dir, file + ".png")
+        # Use consistent _left.png.png naming for mask files
+        base_name = os.path.splitext(file)[0]  # Remove .png extension
+        mask_path = os.path.join(mask_dir, dir, base_name + "_left.png.png")
         mask = Image.open(mask_path)
 
         mask_data = np.array(mask.convert("RGB"))
@@ -147,7 +153,25 @@ if __name__ == "__main__":
     _, _, files = [p for p in os.walk(images_dir)][0]
     img_list = []
 
+    # Process only left images and rename them
     for file in files:
+        # Skip if file doesn't exist (might have been renamed in a previous run)
+        if not os.path.exists(os.path.join(images_dir, file)):
+            continue
+            
+        if "right" in file and os.path.exists(os.path.join(images_dir, file)):
+            # Delete right images only if they exist
+            os.remove(os.path.join(images_dir, file))
+            continue
+            
+        if "left" in file:
+            # Rename left images to remove "_left" suffix
+            new_name = file.replace("_left", "")
+            old_path = os.path.join(images_dir, file)
+            new_path = os.path.join(images_dir, new_name)
+            os.rename(old_path, new_path)
+            file = new_name  # Use new name for processing
+            
         image = cv2.imread(os.path.join(images_dir, file))
 
         orig_w, orig_h = image.shape[1], image.shape[0]

@@ -51,13 +51,22 @@ if __name__ == "__main__":
 
     outputs = model.encode(data).detach().to("cpu").numpy()
 
+    # Create a mapping from object names to indices
+    object_to_idx = {name: idx for idx, name in enumerate(sorted(os.listdir(mask_dir)))}
+
     os.makedirs(output_dir, exist_ok=True)
 
     # copy the segmentation map
     for filename in os.listdir(rgb_dir):
         clip_composite = None
         for dirname in os.listdir(mask_dir):
-            image = cv2.imread(os.path.join(mask_dir, dirname, filename + ".png"))
+            # Remove .png extension and add _left.png.png for mask files
+            base_name = os.path.splitext(filename)[0]  # Remove .png extension
+            mask_path = os.path.join(mask_dir, dirname, base_name + "_left.png.png")
+            image = cv2.imread(mask_path)
+            
+            if image is None:
+                continue
 
             orig_w, orig_h = image.shape[1], image.shape[0]
             if args.downsample == -1:
@@ -80,7 +89,7 @@ if __name__ == "__main__":
             image = cv2.resize(image, resolution)
             image = np.float16(image)
             image /= 255
-            image *= outputs[int(dirname)]
+            image *= outputs[object_to_idx[dirname]]
 
             if clip_composite is None:
                 clip_composite = image

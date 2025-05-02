@@ -30,9 +30,9 @@ DATASET_PATH="${WORKSPACE_DIR}/data/plate"
 # Change to workspace directory
 cd "${WORKSPACE_DIR}"
 
-# # Step 1: Extract features
-# echo "Running extract_features.py..."
-# python extract_features.py -s "${DATASET_PATH}" -r 1
+# Step 1: Extract features
+echo "Running extract_features.py..."
+python extract_features.py -s "${DATASET_PATH}" -r 1
 
 # Step 2: Run autoencoder training and testing
 echo "Running autoencoder training..."
@@ -48,5 +48,5 @@ python dino_pca.py -s "${DATASET_PATH}" -r 1
 
 echo "Preprocessing completed!"
 
-# To save the visualization instead of displaying
-python visualize_dino.py --npy_path data/plate/dino/1x/000000.npy --output_path visualization.png
+# # To save the visualization instead of displaying
+# python visualize_dino.py --npy_path data/plate/dino/1x/000000.npy --output_path visualization.png
