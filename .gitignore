@@ -18,3 +18,5 @@ data
 eval
 *.npz
 **/tmp
+cheated/
+input_data/

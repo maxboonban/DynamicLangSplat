@@ -153,24 +153,11 @@ if __name__ == "__main__":
     _, _, files = [p for p in os.walk(images_dir)][0]
     img_list = []
 
-    # Process only left images and rename them
+    # Process images
     for file in files:
-        # Skip if file doesn't exist (might have been renamed in a previous run)
+        # Skip if file doesn't exist
         if not os.path.exists(os.path.join(images_dir, file)):
             continue
-            
-        if "right" in file and os.path.exists(os.path.join(images_dir, file)):
-            # Delete right images only if they exist
-            os.remove(os.path.join(images_dir, file))
-            continue
-            
-        if "left" in file:
-            # Rename left images to remove "_left" suffix
-            new_name = file.replace("_left", "")
-            old_path = os.path.join(images_dir, file)
-            new_path = os.path.join(images_dir, new_name)
-            os.rename(old_path, new_path)
-            file = new_name  # Use new name for processing
             
         image = cv2.imread(os.path.join(images_dir, file))
 
