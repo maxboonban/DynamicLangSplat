@@ -59,10 +59,12 @@ if __name__ == "__main__":
     # copy the segmentation map
     for filename in os.listdir(rgb_dir):
         clip_composite = None
-        for dirname in os.listdir(mask_dir):
-            # Remove .png extension and add _left.png.png for mask files
-            base_name = os.path.splitext(filename)[0]  # Remove .png extension
-            mask_path = os.path.join(mask_dir, dirname, base_name + "_left.png.png")
+        print(mask_dir)
+        for mask_file in os.listdir(mask_dir):
+            # Use the mask file directly
+            mask_path = os.path.join(mask_dir, mask_file)
+            print("This is the mask_path: ", mask_path)
+            print("This is the mask file: ", mask_file)
             image = cv2.imread(mask_path)
             
             if image is None:
@@ -89,7 +91,7 @@ if __name__ == "__main__":
             image = cv2.resize(image, resolution)
             image = np.float16(image)
             image /= 255
-            image *= outputs[object_to_idx[dirname]]
+            image *= outputs[object_to_idx[mask_file]]
 
             if clip_composite is None:
                 clip_composite = image

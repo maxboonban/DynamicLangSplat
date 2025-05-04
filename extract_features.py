@@ -36,11 +36,22 @@ def extract_features(image_list, resolution, sequence_dir):
     clip_dir = os.path.join(sequence_dir, f"clip/{resolution}")
     os.makedirs(dino_dir, exist_ok=True)
     os.makedirs(clip_dir, exist_ok=True)
-    print(mask_dir)
-    _, dirs, _ = [p for p in os.walk(mask_dir)][0]
+    print(f"\nDebug: mask_dir path: {mask_dir}")
+    print(f"Debug: Does mask_dir exist? {os.path.exists(mask_dir)}")
+    
+    # Get list of directories in mask_dir
+    try:
+        _, dirs, _ = [p for p in os.walk(mask_dir)][0]
+        print(f"Debug: Found {len(dirs)} directories in mask_dir: {dirs}")
+    except Exception as e:
+        print(f"Debug: Error walking mask_dir: {str(e)}")
+        return
+    
     most_visible = {}
     # Create a mapping from directory names to indices
     dir_to_idx = {dir_name: idx for idx, dir_name in enumerate(sorted(dirs))}
+    print(f"Debug: dir_to_idx mapping: {dir_to_idx}")
+    
     progress_bar = tqdm(range(0, len(image_list)), desc="Extracting DINO features")
 
     for im_tensor, file in image_list:
@@ -85,31 +96,44 @@ def extract_features(image_list, resolution, sequence_dir):
         with open(os.path.join(dino_dir, base_name + ".json"), "w") as f:
             json.dump(dino_crop, f)
         for dir in dirs:
-            # Construct mask path with _left.png.png naming convention
+            # Construct mask path with _left.png naming convention
             base_name = os.path.splitext(file)[0]  # Remove .png extension
             mask_path = os.path.join(mask_dir, dir, base_name + "_left.png.png")
-            mask = Image.open(mask_path)
-            mask.resize((W, H))
+            print(f"\nDebug: Processing mask path: {mask_path}")
+            print(f"Debug: Does mask file exist? {os.path.exists(mask_path)}")
+            
+            try:
+                mask = Image.open(mask_path)
+                mask.resize((W, H))
 
-            mask_data = np.array(mask.convert("RGB"))
-            mask_data //= max(1, mask_data.max())
-            if dir not in most_visible:
-                most_visible[dir] = [mask_data.sum(), file]
-            elif mask_data.sum() > most_visible[dir][0]:
-                most_visible[dir] = [mask_data.sum(), file]
+                mask_data = np.array(mask.convert("RGB"))
+                mask_data //= max(1, mask_data.max())
+                print(f"Debug: Mask data sum for {dir}: {mask_data.sum()}")
+                
+                if dir not in most_visible:
+                    most_visible[dir] = [mask_data.sum(), file]
+                    print(f"Debug: Added {dir} to most_visible with sum {mask_data.sum()}")
+                elif mask_data.sum() > most_visible[dir][0]:
+                    most_visible[dir] = [mask_data.sum(), file]
+                    print(f"Debug: Updated {dir} in most_visible with sum {mask_data.sum()}")
+            except Exception as e:
+                print(f"Debug: Error processing mask {mask_path}: {str(e)}")
         progress_bar.update(1)
     progress_bar.close()
 
+    print(f"\nDebug: Final most_visible contents: {most_visible}")
+    print(f"Debug: Length of most_visible: {len(most_visible)}")
     clip_embeddings = np.zeros((len(most_visible), CLIP_FEATURES))
     progress_bar = tqdm(range(0, len(most_visible)), desc="Extracting CLIP features")
     for dir in most_visible:
+        print("This is the dir: ", dir)
         _, file = most_visible[dir]
         image_path = os.path.join(images_dir, file)
         image = Image.open(image_path)
 
         im_data = np.array(image.convert("RGB"))
         H, W, _ = im_data.shape
-        # Use consistent _left.png.png naming for mask files
+        # Use consistent _left.png naming for mask files
         base_name = os.path.splitext(file)[0]  # Remove .png extension
         mask_path = os.path.join(mask_dir, dir, base_name + "_left.png.png")
         mask = Image.open(mask_path)

@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=gaufre_preprocess
-#SBATCH --output=slurm/gaufre_preprocess.out
-#SBATCH --error=slurm/gaufre_preprocess.err
+#SBATCH --output=slurm/gaufre_preprocess1.out
+#SBATCH --error=slurm/gaufre_preprocess1.err
 #SBATCH --time=24:00:00               # Increased time for preprocessing steps
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
@@ -17,6 +17,8 @@ source /oscar/runtime/software/external/miniconda3/23.11.0/etc/profile.d/conda.s
 # Activate environment
 conda activate lsplat
 
+# python print_npy_files.py input_data/plate/clip/1x/embeddings.npy
+
 # Set dataset name and resolution
 DATASET_NAME="plate"
 RESOLUTION=1
@@ -26,13 +28,13 @@ WORKSPACE_DIR="/oscar/scratch/wboonban/DynamicLangSplat"
 cd "${WORKSPACE_DIR}"
 
 # Set dataset path
-DATASET_PATH="input_data/${DATASET_NAME}"
+DATASET_PATH="/oscar/scratch/wboonban/DynamicLangSplat/input_data/${DATASET_NAME}"
 
 # # Step 0: Run data preprocessing
 # echo "Running data preprocessing..."
 # sh data_preprocess.sh "${DATASET_NAME}" "${RESOLUTION}"
 
-# Step 1: Extract features
+# # Step 1: Extract features
 echo "Running extract_features.py..."
 python extract_features.py -s "${DATASET_PATH}" -r "${RESOLUTION}"
 
