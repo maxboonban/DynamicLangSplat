@@ -55,7 +55,6 @@ def extract_features(image_list, resolution, sequence_dir):
     progress_bar = tqdm(range(0, len(image_list)), desc="Extracting DINO features")
 
     for im_tensor, file in image_list:
-
         H, W, _ = im_tensor.shape
         im_tensor = im_tensor.unsqueeze(0).cuda()
         im_tensor = rearrange(im_tensor, "b h w c -> b c h w")
@@ -77,12 +76,6 @@ def extract_features(image_list, resolution, sequence_dir):
         dino_features = torch.reshape(
             dino_features, (1, DINO_FEATURES, H_14 // 14, W_14 // 14)
         )
-        # resize = nn.Upsample(scale_factor=14)
-        # dino_features = resize(dino_features)
-        # dino_features = dino_features[
-        #     :, :, padding_top : H + padding_top, padding_left : W + padding_left
-        # ]
-        # assert dino_features.shape[2:] == im_tensor.shape[2:]
         dino_features = rearrange(dino_features, "b c h w -> b h w c")
         dino_crop = {
             "padding_top": padding_top,
@@ -95,19 +88,24 @@ def extract_features(image_list, resolution, sequence_dir):
         np.save(os.path.join(dino_dir, base_name + ".npy"), dino_features.squeeze(0).cpu().numpy())
         with open(os.path.join(dino_dir, base_name + ".json"), "w") as f:
             json.dump(dino_crop, f)
+
+        # Extract frame number from the filename (e.g., "000001_left.png" -> "1")
+        frame_num = str(int(base_name.split("_")[0]))  # Convert to int to remove leading zeros, then back to string
+        # Format with 5 digits (3 zeros)
+        frame_num = f"{int(frame_num):05d}"
+        
         for dir in dirs:
-            # Construct mask path with _left.png naming convention
-            base_name = os.path.splitext(file)[0]  # Remove .png extension
-            mask_path = os.path.join(mask_dir, dir, base_name + "_left.png.png")
+            # Construct mask path with frame_00XXX.png format
+            mask_path = os.path.join(mask_dir, dir, f"frame_{frame_num}.png")
             print(f"\nDebug: Processing mask path: {mask_path}")
             print(f"Debug: Does mask file exist? {os.path.exists(mask_path)}")
             
             try:
                 mask = Image.open(mask_path)
-                mask.resize((W, H))
+                mask = mask.resize((W, H))  # Use resize method properly
 
                 mask_data = np.array(mask.convert("RGB"))
-                mask_data //= max(1, mask_data.max())
+                mask_data = mask_data / max(1, mask_data.max())  # Use floating point division
                 print(f"Debug: Mask data sum for {dir}: {mask_data.sum()}")
                 
                 if dir not in most_visible:
@@ -133,14 +131,17 @@ def extract_features(image_list, resolution, sequence_dir):
 
         im_data = np.array(image.convert("RGB"))
         H, W, _ = im_data.shape
-        # Use consistent _left.png naming for mask files
-        base_name = os.path.splitext(file)[0]  # Remove .png extension
-        mask_path = os.path.join(mask_dir, dir, base_name + "_left.png.png")
+        
+        # Extract frame number from the filename and format with 5 digits (3 zeros)
+        frame_num = str(int(os.path.splitext(file)[0].split("_")[0]))
+        frame_num = f"{int(frame_num):05d}"
+        mask_path = os.path.join(mask_dir, dir, f"frame_{frame_num}.png")
         mask = Image.open(mask_path)
+        mask = mask.resize((W, H))
 
         mask_data = np.array(mask.convert("RGB"))
-        mask_data //= max(1, mask_data.max())
-        masked_image = Image.fromarray(mask_data * image)
+        mask_data = mask_data / max(1, mask_data.max())
+        masked_image = Image.fromarray((mask_data * im_data).astype(np.uint8))
         preprocessed = preprocess(masked_image).unsqueeze(0).cuda()
         with torch.no_grad():
             clip_embedding = clip.encode_image(preprocessed)

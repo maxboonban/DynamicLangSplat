@@ -29,12 +29,13 @@ cd "${WORKSPACE_DIR}"
 
 # Set dataset path
 DATASET_PATH="/oscar/scratch/wboonban/DynamicLangSplat/input_data/${DATASET_NAME}"
+OUTPUT_PATH="/oscar/scratch/wboonban/DynamicLangSplat/output/${DATASET_NAME}"
 
 # # Step 0: Run data preprocessing
 # echo "Running data preprocessing..."
 # sh data_preprocess.sh "${DATASET_NAME}" "${RESOLUTION}"
 
-# # Step 1: Extract features
+# Step 1: Extract features
 echo "Running extract_features.py..."
 python extract_features.py -s "${DATASET_PATH}" -r "${RESOLUTION}"
 
@@ -46,11 +47,16 @@ echo "Running autoencoder testing..."
 python test.py --dataset_path "${DATASET_PATH}" -r "${RESOLUTION}"
 cd ..
 
-# Step 3: Run DINO PCA
-echo "Running DINO PCA..."
-python dino_pca.py -s "${DATASET_PATH}" -r "${RESOLUTION}"
+# # Step 3: Run DINO PCA
+# echo "Running DINO PCA..."
+# python dino_pca.py -s "${DATASET_PATH}" -r "${RESOLUTION}"
 
-echo "Preprocessing completed!"
+# # Step 4: Train and render GauFRe
+# echo "Training and rendering GauFRe model..."
+# # For real-world scenes
+# bash scripts/trainval_real.sh "${DATASET_PATH}" "${OUTPUT_PATH}"
 
-# To save the visualization instead of displaying
-python visualize_dino.py --npy_path "${DATASET_PATH}/dino/${RESOLUTION}x/000001.npy" --output_path visualization.png
+# echo "All processing completed!"
+
+# # To save the visualization instead of displaying
+# python visualize_dino.py --npy_path "${DATASET_PATH}/dino/${RESOLUTION}x/000001.npy" --output_path visualization.png
