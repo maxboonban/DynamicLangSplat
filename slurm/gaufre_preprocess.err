@@ -1,0 +1,20 @@
+python: can't open file '/oscar/scratch/wboonban/DynamicLangSplat/print_npy_files.py': [Errno 2] No such file or directory
+Traceback (most recent call last):
+  File "/oscar/scratch/wboonban/DynamicLangSplat/autoencoder/train.py", line 49, in <module>
+    train_loader = DataLoader(
+        dataset=train_dataset,
+    ...<3 lines>...
+        drop_last=False,
+    )
+  File "/users/wboonban/.conda/envs/lsplat/lib/python3.13/site-packages/torch/utils/data/dataloader.py", line 383, in __init__
+    sampler = RandomSampler(dataset, generator=generator)  # type: ignore[arg-type]
+  File "/users/wboonban/.conda/envs/lsplat/lib/python3.13/site-packages/torch/utils/data/sampler.py", line 165, in __init__
+    raise ValueError(
+        f"num_samples should be a positive integer value, but got num_samples={self.num_samples}"
+    )
+ValueError: num_samples should be a positive integer value, but got num_samples=0
+Traceback (most recent call last):
+  File "/oscar/scratch/wboonban/DynamicLangSplat/autoencoder/test.py", line 92, in <module>
+    image *= outputs[object_to_idx[mask_file]]
+             ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+IndexError: index 0 is out of bounds for axis 0 with size 0

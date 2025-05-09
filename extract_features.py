@@ -31,17 +31,30 @@ clip.eval()
 
 def extract_features(image_list, resolution, sequence_dir):
     images_dir = os.path.join(sequence_dir, f"rgb/{resolution}")
-    mask_dir = os.path.join(sequence_dir, f"object_mask/{resolution}")
+    mask_dir = os.path.join(sequence_dir, f"mask/{resolution}")
     dino_dir = os.path.join(sequence_dir, f"dino/{resolution}")
     clip_dir = os.path.join(sequence_dir, f"clip/{resolution}")
     os.makedirs(dino_dir, exist_ok=True)
     os.makedirs(clip_dir, exist_ok=True)
-    _, dirs, _ = [p for p in os.walk(mask_dir)][0]
+    print(f"\nDebug: mask_dir path: {mask_dir}")
+    print(f"Debug: Does mask_dir exist? {os.path.exists(mask_dir)}")
+    
+    # Get list of directories in mask_dir
+    try:
+        _, dirs, _ = [p for p in os.walk(mask_dir)][0]
+        print(f"Debug: Found {len(dirs)} directories in mask_dir: {dirs}")
+    except Exception as e:
+        print(f"Debug: Error walking mask_dir: {str(e)}")
+        return
+    
     most_visible = {}
-    progress_bar = tqdm(range(0, len(files)), desc="Extracting DINO features")
+    # Create a mapping from directory names to indices
+    dir_to_idx = {dir_name: idx for idx, dir_name in enumerate(sorted(dirs))}
+    print(f"Debug: dir_to_idx mapping: {dir_to_idx}")
+    
+    progress_bar = tqdm(range(0, len(image_list)), desc="Extracting DINO features")
 
     for im_tensor, file in image_list:
-
         H, W, _ = im_tensor.shape
         im_tensor = im_tensor.unsqueeze(0).cuda()
         im_tensor = rearrange(im_tensor, "b h w c -> b c h w")
@@ -63,12 +76,6 @@ def extract_features(image_list, resolution, sequence_dir):
         dino_features = torch.reshape(
             dino_features, (1, DINO_FEATURES, H_14 // 14, W_14 // 14)
         )
-        # resize = nn.Upsample(scale_factor=14)
-        # dino_features = resize(dino_features)
-        # dino_features = dino_features[
-        #     :, :, padding_top : H + padding_top, padding_left : W + padding_left
-        # ]
-        # assert dino_features.shape[2:] == im_tensor.shape[2:]
         dino_features = rearrange(dino_features, "b c h w -> b h w c")
         dino_crop = {
             "padding_top": padding_top,
@@ -76,42 +83,69 @@ def extract_features(image_list, resolution, sequence_dir):
             "padding_left": padding_left,
             "padding_right": padding_right,
         }
-        np.save(os.path.join(dino_dir, file), dino_features.squeeze(0).cpu().numpy())
-        with open(os.path.join(dino_dir, file + ".json"), "w") as f:
+        # Save DINO features with simplified name
+        base_name = os.path.splitext(file)[0]  # Remove .png extension
+        np.save(os.path.join(dino_dir, base_name + ".npy"), dino_features.squeeze(0).cpu().numpy())
+        with open(os.path.join(dino_dir, base_name + ".json"), "w") as f:
             json.dump(dino_crop, f)
-        for dir in dirs:
-            mask_path = os.path.join(mask_dir, dir, file + ".png")
-            mask = Image.open(mask_path)
-            mask.resize((W, H))
 
-            mask_data = np.array(mask.convert("RGB"))
-            mask_data //= max(1, mask_data.max())
-            if dir not in most_visible:
-                most_visible[dir] = [mask_data.sum(), file]
-            elif mask_data.sum() > most_visible[dir][0]:
-                most_visible[dir] = [mask_data.sum(), file]
+        # Extract frame number from the filename (e.g., "000001_left.png" -> "1")
+        frame_num = str(int(base_name.split("_")[0]))  # Convert to int to remove leading zeros, then back to string
+        # Format with 5 digits (3 zeros)
+        frame_num = f"{int(frame_num):05d}"
+        
+        for dir in dirs:
+            # Construct mask path with frame_00XXX.png format
+            mask_path = os.path.join(mask_dir, dir, f"frame_{frame_num}.png")
+            print(f"\nDebug: Processing mask path: {mask_path}")
+            print(f"Debug: Does mask file exist? {os.path.exists(mask_path)}")
+            
+            try:
+                mask = Image.open(mask_path)
+                mask = mask.resize((W, H))  # Use resize method properly
+
+                mask_data = np.array(mask.convert("RGB"))
+                mask_data = mask_data / max(1, mask_data.max())  # Use floating point division
+                print(f"Debug: Mask data sum for {dir}: {mask_data.sum()}")
+                
+                if dir not in most_visible:
+                    most_visible[dir] = [mask_data.sum(), file]
+                    print(f"Debug: Added {dir} to most_visible with sum {mask_data.sum()}")
+                elif mask_data.sum() > most_visible[dir][0]:
+                    most_visible[dir] = [mask_data.sum(), file]
+                    print(f"Debug: Updated {dir} in most_visible with sum {mask_data.sum()}")
+            except Exception as e:
+                print(f"Debug: Error processing mask {mask_path}: {str(e)}")
         progress_bar.update(1)
     progress_bar.close()
 
+    print(f"\nDebug: Final most_visible contents: {most_visible}")
+    print(f"Debug: Length of most_visible: {len(most_visible)}")
     clip_embeddings = np.zeros((len(most_visible), CLIP_FEATURES))
     progress_bar = tqdm(range(0, len(most_visible)), desc="Extracting CLIP features")
     for dir in most_visible:
+        print("This is the dir: ", dir)
         _, file = most_visible[dir]
         image_path = os.path.join(images_dir, file)
         image = Image.open(image_path)
 
         im_data = np.array(image.convert("RGB"))
         H, W, _ = im_data.shape
-        mask_path = os.path.join(mask_dir, dir, file + ".png")
+        
+        # Extract frame number from the filename and format with 5 digits (3 zeros)
+        frame_num = str(int(os.path.splitext(file)[0].split("_")[0]))
+        frame_num = f"{int(frame_num):05d}"
+        mask_path = os.path.join(mask_dir, dir, f"frame_{frame_num}.png")
         mask = Image.open(mask_path)
+        mask = mask.resize((W, H))
 
         mask_data = np.array(mask.convert("RGB"))
-        mask_data //= max(1, mask_data.max())
-        masked_image = Image.fromarray(mask_data * image)
+        mask_data = mask_data / max(1, mask_data.max())
+        masked_image = Image.fromarray((mask_data * im_data).astype(np.uint8))
         preprocessed = preprocess(masked_image).unsqueeze(0).cuda()
         with torch.no_grad():
             clip_embedding = clip.encode_image(preprocessed)
-        clip_embeddings[int(dir), :] = clip_embedding.squeeze().cpu().numpy()
+        clip_embeddings[dir_to_idx[dir], :] = clip_embedding.squeeze().cpu().numpy()
         progress_bar.update(1)
     progress_bar.close()
     np.save(os.path.join(clip_dir, "embeddings"), clip_embeddings)
@@ -144,7 +178,12 @@ if __name__ == "__main__":
     _, _, files = [p for p in os.walk(images_dir)][0]
     img_list = []
 
+    # Process images
     for file in files:
+        # Skip if file doesn't exist
+        if not os.path.exists(os.path.join(images_dir, file)):
+            continue
+            
         image = cv2.imread(os.path.join(images_dir, file))
 
         orig_w, orig_h = image.shape[1], image.shape[0]

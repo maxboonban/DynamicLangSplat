@@ -46,6 +46,8 @@ if __name__ == "__main__":
     checkpoint_path = f"ckpt/{dataset_name}/{args.resolution}x"
     os.makedirs(checkpoint_path, exist_ok=True)
     train_dataset = Autoencoder_dataset(data_dir)
+    print("This is the train_dataset: ", len(train_dataset))
+    print("This is the data_dir: ", data_dir)
     train_loader = DataLoader(
         dataset=train_dataset,
         batch_size=64,

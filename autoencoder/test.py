@@ -33,7 +33,7 @@ if __name__ == "__main__":
     ckpt_path = os.path.join(checkpoint_path, "best_ckpt.pth")
 
     data_dir = os.path.join(dataset_path, f"clip/{args.resolution}x")
-    mask_dir = os.path.join(dataset_path, f"object_mask/{args.resolution}x")
+    mask_dir = os.path.join(dataset_path, f"mask/{args.resolution}x")
     rgb_dir = os.path.join(dataset_path, f"rgb/{args.resolution}x")
     output_dir = os.path.join(dataset_path, f"clip_dim3/{args.resolution}x")
     os.makedirs(output_dir, exist_ok=True)
@@ -51,13 +51,24 @@ if __name__ == "__main__":
 
     outputs = model.encode(data).detach().to("cpu").numpy()
 
+    # Create a mapping from object names to indices
+    object_to_idx = {name: idx for idx, name in enumerate(sorted(os.listdir(mask_dir)))}
+
     os.makedirs(output_dir, exist_ok=True)
 
     # copy the segmentation map
     for filename in os.listdir(rgb_dir):
         clip_composite = None
-        for dirname in os.listdir(mask_dir):
-            image = cv2.imread(os.path.join(mask_dir, dirname, filename + ".png"))
+        print(mask_dir)
+        for mask_file in os.listdir(mask_dir):
+            # Use the mask file directly
+            mask_path = os.path.join(mask_dir, mask_file)
+            print("This is the mask_path: ", mask_path)
+            print("This is the mask file: ", mask_file)
+            image = cv2.imread(mask_path)
+            
+            if image is None:
+                continue
 
             orig_w, orig_h = image.shape[1], image.shape[0]
             if args.downsample == -1:
@@ -80,7 +91,7 @@ if __name__ == "__main__":
             image = cv2.resize(image, resolution)
             image = np.float16(image)
             image /= 255
-            image *= outputs[int(dirname)]
+            image *= outputs[object_to_idx[mask_file]]
 
             if clip_composite is None:
                 clip_composite = image
